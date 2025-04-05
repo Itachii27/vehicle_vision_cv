@@ -1,3 +1,6 @@
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -43,3 +46,16 @@ with torch.no_grad():
 # Evaluation
 print("Accuracy:", accuracy_score(y_test, predicted))
 print("Classification Report:\n", classification_report(y_test, predicted, target_names=risk_encoder.classes_))
+
+# Confusion Matrix
+cm = confusion_matrix(y_test, predicted)
+plt.figure(figsize=(6, 5))
+sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
+            xticklabels=risk_encoder.classes_,
+            yticklabels=risk_encoder.classes_)
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.title("Confusion Matrix")
+plt.tight_layout()
+plt.savefig("confusion_matrix.png")
+plt.show()
