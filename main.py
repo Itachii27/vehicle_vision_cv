@@ -31,6 +31,12 @@ def compute_risk_score(x1, y1, x2, y2, label, frame_width, frame_height):
     risk_score = label_weight * distance_weight * size_weight
     return risk_score
 
+# -------------------- Display Settings --------------------
+display_scale = 0.6  # scale down display window
+
+important_classes = {'car', 'person', 'bus', 'truck', 'traffic light', 'stop sign'}
+max_boxes = 10  # max number of bounding boxes to show
+
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
@@ -62,6 +68,9 @@ while cap.isOpened():
             nms_threshold=nms_iou_thresh
         )
 
+        # Limit number of boxes
+        indices = sorted(indices, key=lambda i: scores[i[0] if isinstance(i, (list, tuple, np.ndarray)) else i], reverse=True)[:max_boxes]
+
         label_colors = {
             'car': (255, 255, 255),
             'person': (50, 205, 50),
@@ -76,6 +85,9 @@ while cap.isOpened():
             x, y, w, h = bboxes[i]
             x1, y1, x2, y2 = x, y, x + w, y + h
             label = results.names[classes[i]]
+            if label not in important_classes:
+                continue
+
             base_color = label_colors.get(label, (200, 200, 200))
 
             # -------------------- Risk Scoring --------------------
@@ -94,10 +106,10 @@ while cap.isOpened():
             alpha = 0.3
             cv2.addWeighted(overlay, alpha, annotated, 1 - alpha, 0, annotated)
 
-            # Outline box and text
-            cv2.rectangle(annotated, (x1, y1), (x2, y2), base_color, 2)
+            # Outline box and text (smaller text and thinner box)
+            cv2.rectangle(annotated, (x1, y1), (x2, y2), base_color, 1)
             cv2.putText(annotated, f"{label} {scores[i]:.2f} | Risk: {risk_score:.2f}",
-                        (x1, y2 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, risk_color, 2)
+                        (x1, y2 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, risk_color, 1)
 
     # -------------------- Lane Detection --------------------
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -127,7 +139,10 @@ while cap.isOpened():
                 drawn.append((x1, y1, x2, y2))
                 cv2.line(annotated, (x1, y1), (x2, y2), (0, 140, 255), 2)
 
-    cv2.imshow('Vehicle Vision System', annotated)
+    # -------------------- Display Resize --------------------
+    # resized_annotated = cv2.resize(annotated, (0, 0), fx=display_scale, fy=display_scale)
+    resized_frame = cv2.resize(annotated, (1280, 720))
+    cv2.imshow('Vehicle Vision System', resized_frame)
 
     if cv2.waitKey(25) & 0xFF == ord('q'):
         break
