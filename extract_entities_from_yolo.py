@@ -1,6 +1,7 @@
 import cv2
 import torch
 import numpy as np
+import json  # <-- new
 
 # Load YOLOv5 (from PyTorch Hub or local path)
 model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
@@ -19,8 +20,7 @@ def get_yolo_detections(frame, conf_threshold=0.4):
         entity_crop = frame[y1:y2, x1:x2]
         entities.append({
             'label': label,
-            'bbox': (x1, y1, x2, y2),
-            'crop': entity_crop,
+            'bbox': [x1, y1, x2, y2],
             'confidence': float(conf)
         })
 
@@ -41,7 +41,16 @@ def visualize_detections(frame, entities, output_path='yolo_output.jpg'):
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    # Test with a sample image
     frame = cv2.imread("test_driving_scene.png")
+
+    if frame is None:
+        print("❌ Image not found. Make sure 'test_driving_scene.png' exists in the folder.")
+        exit()
+
     entities = get_yolo_detections(frame)
+
+    with open("detected_entities.json", "w") as f:
+        json.dump(entities, f, indent=2)
+    print("[✓] Detections saved to detected_entities.json")
+
     visualize_detections(frame.copy(), entities)
