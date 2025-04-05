@@ -13,7 +13,7 @@ while cap.isOpened():
     if not ret:
         break
 
-    # Object Detection (Pedestrians, Cars, Signs) with de-duplication
+    # Object Detection (Pedestrians, Cars, Signs) with NMS
     results = model(frame)
     detections = results.xyxy[0].cpu().numpy()  # [x1, y1, x2, y2, conf, class]
 
@@ -28,7 +28,7 @@ while cap.isOpened():
         scores = np.array([d[4] for d in filtered])
         classes = [int(d[5]) for d in filtered]
 
-        # Convert for cv2.dnn.NMSBoxes
+        # Convert to format expected by NMSBoxes
         bboxes = []
         for box in boxes:
             x1, y1, x2, y2 = box
@@ -41,17 +41,27 @@ while cap.isOpened():
             nms_threshold=nms_iou_thresh
         )
 
+        # Soft colors
+        label_colors = {
+        'car': (255, 255, 255),          # White
+        'person': (50, 205, 50),         # Green
+        'truck': (0, 0, 255),            # Red
+        'bus': (255, 0, 255),            # Magenta
+        'traffic light': (0, 255, 255),  # Yellow
+        'stop sign': (128, 0, 128),      # Purple
+        }
+
         for i in indices:
             i = i[0] if isinstance(i, (list, tuple, np.ndarray)) else i
             x, y, w, h = bboxes[i]
             x1, y1, x2, y2 = x, y, x + w, y + h
             label = results.names[classes[i]]
-            color = (0, 255, 0) if label == 'car' else (255, 0, 0)
+            color = label_colors.get(label, (200, 200, 200))  # Default: gray
             cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
             cv2.putText(annotated, f"{label} {scores[i]:.2f}", (x1, y1 - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
-    # Road & Lane Markings using white threshold
+    # Lane detection (white threshold in HSV)
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     lower_white = np.array([0, 0, 180])
     upper_white = np.array([255, 80, 255])
@@ -77,7 +87,8 @@ while cap.isOpened():
                     break
             if not similar:
                 drawn.append((x1, y1, x2, y2))
-                cv2.line(annotated, (x1, y1), (x2, y2), (255, 0, 0), 3)
+                # Use subtle cyan for lane lines
+                cv2.line(annotated, (x1, y1), (x2, y2), (0, 140, 255), 2)
 
     cv2.imshow('Vehicle Vision System', annotated)
 
