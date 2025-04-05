@@ -1,7 +1,8 @@
+import os
+import csv
 import cv2
 import torch
 import numpy as np
-import os
 
 # Load YOLOv5 model
 model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
@@ -30,6 +31,12 @@ def compute_risk_score(x1, y1, x2, y2, label, frame_width, frame_height):
 
     risk_score = label_weight * distance_weight * size_weight
     return risk_score
+
+# -------------------- CSV Setup --------------------
+csv_file = 'data.csv'
+with open(csv_file, mode='w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerow(['Timestamp', 'Label', 'Risk Score', 'X1', 'Y1', 'X2', 'Y2'])
 
 # -------------------- Display Settings --------------------
 display_scale = 0.6  # scale down display window
@@ -93,6 +100,14 @@ while cap.isOpened():
             # -------------------- Risk Scoring --------------------
             risk_score = compute_risk_score(x1, y1, x2, y2, label, frame.shape[1], frame.shape[0])
 
+            # ✅ -------------------- Save to CSV --------------------
+            timestamp = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000.0
+            with open(csv_file, mode='a', newline='') as file:
+                writer = csv.writer(file)
+                writer.writerow([f"{timestamp:.2f}", label, f"{risk_score:.2f}", x1, y1, x2, y2])
+
+            # -------------------- Risk Heatmap Overlay --------------------
+            overlay = annotated.copy()
             if risk_score > 0.6:
                 risk_color = (0, 0, 255)  # Red
             elif risk_score > 0.3:
@@ -100,13 +115,10 @@ while cap.isOpened():
             else:
                 risk_color = (0, 255, 0)  # Green
 
-            # -------------------- Risk Heatmap Overlay --------------------
-            overlay = annotated.copy()
             cv2.rectangle(overlay, (x1, y1), (x2, y2), risk_color, -1)
             alpha = 0.3
             cv2.addWeighted(overlay, alpha, annotated, 1 - alpha, 0, annotated)
 
-            # Outline box and text (smaller text and thinner box)
             cv2.rectangle(annotated, (x1, y1), (x2, y2), base_color, 1)
             cv2.putText(annotated, f"{label} {scores[i]:.2f} | Risk: {risk_score:.2f}",
                         (x1, y2 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, risk_color, 1)
@@ -140,7 +152,6 @@ while cap.isOpened():
                 cv2.line(annotated, (x1, y1), (x2, y2), (0, 140, 255), 2)
 
     # -------------------- Display Resize --------------------
-    # resized_annotated = cv2.resize(annotated, (0, 0), fx=display_scale, fy=display_scale)
     resized_frame = cv2.resize(annotated, (1280, 720))
     cv2.imshow('Vehicle Vision System', resized_frame)
 
