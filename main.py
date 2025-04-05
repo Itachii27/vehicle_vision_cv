@@ -30,13 +30,29 @@ def compute_risk_score(x1, y1, x2, y2, label, frame_width, frame_height):
     size_weight = min(1.0, box_area / (frame_width * frame_height * 0.1))
 
     risk_score = label_weight * distance_weight * size_weight
-    return risk_score
+
+
+    # Risk level categorization
+    if risk_score > 0.6:
+        risk_level = 'High'
+    elif risk_score > 0.3:
+        risk_level = 'Medium'
+    else:
+        risk_level = 'Low'
+
+    return risk_score, risk_level, box_area, center_offset, label_weight, distance_weight
 
 # -------------------- CSV Setup --------------------
 csv_file = 'data.csv'
 with open(csv_file, mode='w', newline='') as file:
     writer = csv.writer(file)
-    writer.writerow(['Timestamp', 'Label', 'Risk Score', 'X1', 'Y1', 'X2', 'Y2'])
+    writer.writerow([
+        'Timestamp', 'Label',
+        'Box Area', 'Center Offset',
+        'Label Weight', 'Distance Weight',
+        'Risk Score', 'Risk Level',
+        'X1', 'Y1', 'X2', 'Y2'
+    ])
 
 # -------------------- Display Settings --------------------
 display_scale = 0.6  # scale down display window
@@ -102,9 +118,18 @@ while cap.isOpened():
 
             # ✅ -------------------- Save to CSV --------------------
             timestamp = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000.0
+            risk_score, risk_level, box_area, center_offset, label_weight, distance_weight = compute_risk_score(
+                x1, y1, x2, y2, label, frame.shape[1], frame.shape[0]
+            )
             with open(csv_file, mode='a', newline='') as file:
                 writer = csv.writer(file)
-                writer.writerow([f"{timestamp:.2f}", label, f"{risk_score:.2f}", x1, y1, x2, y2])
+                writer.writerow([
+                    f"{timestamp:.2f}", label,
+                    f"{box_area:.2f}", f"{center_offset:.2f}",
+                    f"{label_weight:.2f}", f"{distance_weight:.2f}",
+                    f"{risk_score:.2f}", risk_level,
+                    x1, y1, x2, y2
+                ])
 
             # -------------------- Risk Heatmap Overlay --------------------
             overlay = annotated.copy()
